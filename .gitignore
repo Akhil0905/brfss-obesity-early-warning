@@ -1,0 +1,73 @@
+# =============================================================================
+# BRFSS Obesity Early Warning — .gitignore
+# =============================================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg-link
+.installed.cfg
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints/
+profile_default/
+ipython_config.py
+
+# ── Report deliverables (submitted separately) ────────────────────────────────
+# These are excluded from the repo — submitted via Canva / Overleaf / email
+reports/*.pptx
+reports/*.tex
+reports/*.pdf
+generate_slides.py
+
+# ── NOT excluded (professor will view these directly) ─────────────────────────
+# data/raw/       → raw BRFSS CSV (~40 MB) — kept for reproducibility
+# data/interim/   → cleaned intermediate data
+# data/processed/ → feature & target matrices
+# models/         → all trained .joblib model files
+# reports/figures/→ all generated PNGs
+# reports/metrics/→ all JSON metric files
+# notebooks/      → Phase 1 & Phase 2 notebooks
+
+# Environment / secrets (never commit .env files)
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.code-workspace
+
+# Logs
+*.log
+logs/
+
+# Coverage / testing
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+
+# Type stubs
+.mypy_cache/
+.pytype/
