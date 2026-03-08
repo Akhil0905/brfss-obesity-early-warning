@@ -71,3 +71,4 @@ htmlcov/
 # Type stubs
 .mypy_cache/
 .pytype/
+PROJECT_PLAN.md
