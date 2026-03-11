@@ -15,7 +15,7 @@ This project builds a modular, interpretable machine learning pipeline to model 
 **Behavioral Risk Factor Surveillance System (BRFSS)** Nutrition, Physical Activity, and Obesity dataset.
 
 **Course:** DSCI 521 — Data Analysis and Interpretation · Drexel University  
-**Team:** The OGs — Akhil Tom · Sapan Parikh · Rishabh Gujarati · Yugeshkanna Venkatesh
+**Team:** The OGs — Akhil Tom · Sapan Parikh · Rishabh Gujarathi · Yugeshkanna Venkatesh
 
 The project answers:
 - Which socioeconomic and demographic factors are most associated with high obesity prevalence?
