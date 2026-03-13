@@ -38,6 +38,7 @@ PROCESSED_DATA_DIR: Path = DATA_DIR / "processed"
 # ---------------------------------------------------------------------------
 REGRESSION_MODELS_DIR: Path = MODELS_DIR / "regression"
 CLASSIFICATION_MODELS_DIR: Path = MODELS_DIR / "classification"
+TIMESERIES_MODELS_DIR: Path = MODELS_DIR / "timeseries"
 
 # ---------------------------------------------------------------------------
 # Report subdirectories
@@ -61,6 +62,7 @@ def ensure_dirs() -> None:
         PROCESSED_DATA_DIR,
         REGRESSION_MODELS_DIR,
         CLASSIFICATION_MODELS_DIR,
+        TIMESERIES_MODELS_DIR,
         FIGURES_DIR,
         METRICS_DIR,
     ]
@@ -104,8 +106,10 @@ def model_path(track: str, filename: str) -> Path:
         return REGRESSION_MODELS_DIR / filename
     elif track == "classification":
         return CLASSIFICATION_MODELS_DIR / filename
+    elif track == "timeseries":
+        return TIMESERIES_MODELS_DIR / filename
     else:
-        raise ValueError(f"Unknown model track: '{track}'. Expected 'regression' or 'classification'.")
+        raise ValueError(f"Unknown model track: '{track}'. Expected 'regression', 'classification', or 'timeseries'.")
 
 
 def metrics_path(filename: str) -> Path:

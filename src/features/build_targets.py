@@ -134,7 +134,7 @@ def build_targets(
     # -----------------------------------------------------------------------
     # 5. Assemble target DataFrame
     # -----------------------------------------------------------------------
-    target_cols = ["YearStart", "LocationAbbr", "stratum_category", "stratum_value",
+    target_cols = ["YearStart", "LocationAbbr", "LocationDesc", "stratum_category", "stratum_value",
                    regression_target, high_risk_col]
     if ew_built and ew_col in df.columns:
         target_cols.append(ew_col)

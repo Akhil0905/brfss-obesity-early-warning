@@ -104,6 +104,13 @@ split:
   random_state: 42
 
 # ---------------------------------------------------------------------------
+# Validation Strategy
+# ---------------------------------------------------------------------------
+validation:
+  cv_folds: 5
+  group_col: "LocationDesc"
+
+# ---------------------------------------------------------------------------
 # Regression Models
 # ---------------------------------------------------------------------------
 regression:
@@ -165,6 +172,19 @@ classification:
       learning_rate: 0.05
       subsample: 0.8
       scale_pos_weight: 1  # override in pipeline if imbalanced
+
+# ---------------------------------------------------------------------------
+# Time Series (Deep Learning) Models
+# ---------------------------------------------------------------------------
+timeseries:
+  enabled: true
+  seq_length: 3
+  hidden_size: 64
+  num_layers: 2
+  learning_rate: 0.001
+  batch_size: 32
+  num_epochs: 50
+  dropout: 0.2
 
 # ---------------------------------------------------------------------------
 # Interpretability

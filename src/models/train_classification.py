@@ -105,6 +105,7 @@ def train_classification_models(
     y_train: pd.Series,
     classification_target: str,
     config: Optional[dict] = None,
+    silent: bool = False,
 ) -> Dict[str, Any]:
     """Train all enabled classification models.
 
@@ -113,6 +114,7 @@ def train_classification_models(
         y_train: Binary target vector (training split).
         classification_target: Name of the target column (for logging).
         config: Pre-loaded config. If None, loaded from config.yaml.
+        silent: If True, suppress logging and model saving (useful for CV).
 
     Returns:
         Dictionary mapping model name → fitted classifer.
@@ -122,7 +124,7 @@ def train_classification_models(
 
     random_state = config["split"]["random_state"]
     model_configs = config["classification"]["models"]
-    save_models = config["output"]["save_models"]
+    save_models = config["output"]["save_models"] and not silent
 
     # Drop rows where target is NaN (can happen for early_warning)
     valid_mask = y_train.notna()
@@ -131,11 +133,13 @@ def train_classification_models(
 
     n_pos = int(y_fit.sum())
     n_neg = int((y_fit == 0).sum())
-    logger.info(
-        f"Training classification models | target='{classification_target}' | "
-        f"X_train={X_fit.shape} | positive={n_pos:,} | negative={n_neg:,} | "
-        f"imbalance ratio={n_neg / max(n_pos, 1):.1f}:1"
-    )
+    
+    if not silent:
+        logger.info(
+            f"Training classification models | target='{classification_target}' | "
+            f"X_train={X_fit.shape} | positive={n_pos:,} | negative={n_neg:,} | "
+            f"imbalance ratio={n_neg / max(n_pos, 1):.1f}:1"
+        )
 
     trained_models: Dict[str, Any] = {}
 
@@ -144,10 +148,12 @@ def train_classification_models(
         enabled = model_cfg.get("enabled", True)
 
         if not enabled:
-            logger.info(f"  Skipping '{name}' (disabled in config)")
+            if not silent:
+                logger.info(f"  Skipping '{name}' (disabled in config)")
             continue
 
-        logger.info(f"  Training: {name}")
+        if not silent:
+            logger.info(f"  Training: {name}")
         params = {k: v for k, v in model_cfg.items() if k not in ("name", "enabled")}
 
         estimator = _build_classification_model(name, params, random_state)
@@ -159,12 +165,16 @@ def train_classification_models(
             estimator.fit(X_fit, y_fit)
 
         trained_models[name] = estimator
-        logger.info(f"    → '{name}' trained on {len(X_fit):,} samples")
+        if not silent:
+            logger.info(f"    → '{name}' trained on {len(X_fit):,} samples")
 
         if save_models:
             save_path = model_path("classification", f"{name}.joblib")
             joblib.dump(estimator, save_path)
-            logger.info(f"    → Saved to {save_path}")
+            if not silent:
+                logger.info(f"    → Saved to {save_path}")
 
-    logger.info(f"Classification training complete | {len(trained_models)} model(s) trained")
+    if not silent:
+        logger.info(f"Classification training complete | {len(trained_models)} model(s) trained")
+    return trained_models
     return trained_models

@@ -113,6 +113,7 @@ def train_regression_models(
     y_train: pd.Series,
     config: Optional[dict] = None,
     feature_names: Optional[List[str]] = None,
+    silent: bool = False,
 ) -> Dict[str, Any]:
     """Train all enabled regression models on the training set.
 
@@ -121,6 +122,7 @@ def train_regression_models(
         y_train: Target vector (Data_Value, training split).
         config: Pre-loaded config. If None, loaded from config.yaml.
         feature_names: List of feature column names (for logging).
+        silent: If True, suppress logging and model saving (useful for CV).
 
     Returns:
         Dictionary mapping model name → fitted estimator.
@@ -130,12 +132,13 @@ def train_regression_models(
 
     random_state = config["split"]["random_state"]
     model_configs = config["regression"]["models"]
-    save_models = config["output"]["save_models"]
+    save_models = config["output"]["save_models"] and not silent
 
-    logger.info(
-        f"Training regression models | "
-        f"X_train={X_train.shape} | target rows with value={y_train.notna().sum():,}"
-    )
+    if not silent:
+        logger.info(
+            f"Training regression models | "
+            f"X_train={X_train.shape} | target rows with value={y_train.notna().sum():,}"
+        )
 
     # Drop rows where target is missing (should already be clean, but guard)
     valid_mask = y_train.notna()
@@ -149,10 +152,12 @@ def train_regression_models(
         enabled = model_cfg.get("enabled", True)
 
         if not enabled:
-            logger.info(f"  Skipping '{name}' (disabled in config)")
+            if not silent:
+                logger.info(f"  Skipping '{name}' (disabled in config)")
             continue
 
-        logger.info(f"  Training: {name}")
+        if not silent:
+            logger.info(f"  Training: {name}")
         params = {k: v for k, v in model_cfg.items() if k not in ("name", "enabled")}
 
         estimator = _build_regression_model(name, params, random_state)
@@ -164,12 +169,16 @@ def train_regression_models(
             estimator.fit(X_fit, y_fit)
 
         trained_models[name] = estimator
-        logger.info(f"    → '{name}' trained on {len(X_fit):,} samples")
+        if not silent:
+            logger.info(f"    → '{name}' trained on {len(X_fit):,} samples")
 
         if save_models:
             save_path = model_path("regression", f"{name}.joblib")
             joblib.dump(estimator, save_path)
-            logger.info(f"    → Saved to {save_path}")
+            if not silent:
+                logger.info(f"    → Saved to {save_path}")
 
-    logger.info(f"Regression training complete | {len(trained_models)} model(s) trained")
+    if not silent:
+        logger.info(f"Regression training complete | {len(trained_models)} model(s) trained")
+    return trained_models
     return trained_models

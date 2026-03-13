@@ -43,16 +43,19 @@ from src.features.build_features import build_features, get_feature_columns
 from src.features.build_targets import build_targets, select_classification_target
 from src.models.evaluate_classification import evaluate_classification_models
 from src.models.evaluate_regression import evaluate_regression_models
+from src.models.evaluate_timeseries import evaluate_lstm
 from src.models.explain import explain_models
 from src.models.train_classification import train_classification_models
 from src.models.train_regression import train_regression_models
+from src.models.train_timeseries import prepare_sequences, train_lstm
+from src.models.cross_validation import run_cross_validation
 from src.utils.helpers import get_logger, load_config, print_section, set_pandas_display
 from src.utils.paths import ensure_dirs
 
 logger = get_logger(__name__)
 
 
-def run_pipeline(track: str = "both", config_override: Optional[dict] = None) -> None:
+def run_pipeline(track: str = "both", cv: bool = False, config_override: Optional[dict] = None) -> None:
     """Execute the BRFSS Obesity Early Warning pipeline end-to-end.
 
     Args:
@@ -60,6 +63,7 @@ def run_pipeline(track: str = "both", config_override: Optional[dict] = None) ->
             - 'regression': regression models only
             - 'classification': classification models only
             - 'both': run both tracks (default)
+        cv: Whether to run cross-validation in addition to temporal split.
         config_override: Optional dict to override loaded config values.
             Useful for testing with modified parameters without editing config.yaml.
     """
@@ -126,10 +130,13 @@ def run_pipeline(track: str = "both", config_override: Optional[dict] = None) ->
 
     # Merge features and targets on their shared key columns
     key_cols = ["YearStart", "LocationAbbr", "stratum_category", "stratum_value"]
+    # We also need LocationDesc for GroupKFold if running CV
+    group_cols = ["LocationDesc"]
+    
     key_cols = [c for c in key_cols if c in feature_df.columns and c in target_df.columns]
 
     modeling_df = feature_df.merge(
-        target_df[key_cols + ["Data_Value", config["targets"]["high_risk_col"]]
+        target_df[key_cols + group_cols + ["Data_Value", config["targets"]["high_risk_col"]]
                   + ([classification_target] if classification_target not in
                      [config["targets"]["high_risk_col"], "Data_Value"] else [])],
         on=key_cols,
@@ -170,6 +177,17 @@ def run_pipeline(track: str = "both", config_override: Optional[dict] = None) ->
             config=config,
         )
 
+        if cv:
+            cv_metrics = run_cross_validation(
+                df=modeling_df,
+                feature_cols=feature_cols,
+                target_col="Data_Value",
+                groups_col="LocationDesc",
+                track="regression",
+                config=config
+            )
+            logger.info(f"Cross-Validation Summary (Regression): {cv_metrics}")
+
         print_section("Track 1 Interpretability: Regression")
         explain_models(
             reg_models, X_val, y_val_reg,
@@ -206,6 +224,17 @@ def run_pipeline(track: str = "both", config_override: Optional[dict] = None) ->
                 config=config,
             )
 
+            if cv:
+                cv_metrics = run_cross_validation(
+                    df=modeling_df,
+                    feature_cols=feature_cols,
+                    target_col=classification_target,
+                    groups_col="LocationDesc",
+                    track="classification",
+                    config=config
+                )
+                logger.info(f"Cross-Validation Summary (Classification): {cv_metrics}")
+
             print_section("Track 2 Interpretability: Classification")
             explain_models(
                 clf_models, X_val, y_val_clf,
@@ -213,6 +242,41 @@ def run_pipeline(track: str = "both", config_override: Optional[dict] = None) ->
                 track="classification",
                 config=config,
             )
+
+    # -----------------------------------------------------------------------
+    # Stage 7: Time Series (Deep Learning) Track
+    # -----------------------------------------------------------------------
+    if config.get("timeseries", {}).get("enabled", False) and track in ("regression", "both"):
+        print_section("Stage 7: Time Series (LSTM)")
+        seq_length = config["timeseries"]["seq_length"]
+        
+        # Prepare sequences using the full modeling_df to preserve temporal flow
+        X_seq_all, y_seq_all, years_seq = prepare_sequences(
+            modeling_df, feature_cols, "Data_Value", seq_length=seq_length, return_years=True
+        )
+        
+        # Split sequences based on the year of the prediction (year of the target)
+        train_mask = years_seq <= config["split"]["train_max_year"]
+        val_mask = (years_seq > config["split"]["train_max_year"]) & (years_seq <= config["split"]["val_max_year"])
+        test_mask = years_seq > config["split"]["val_max_year"]
+        
+        X_seq_train, y_seq_train = X_seq_all[train_mask], y_seq_all[train_mask]
+        X_seq_val, y_seq_val = X_seq_all[val_mask], y_seq_all[val_mask]
+        X_seq_test, y_seq_test = X_seq_all[test_mask], y_seq_all[test_mask]
+        
+        logger.info(f"LSTM sequences: train={len(X_seq_train)}, val={len(X_seq_val)}, test={len(X_seq_test)}")
+        
+        if len(X_seq_train) > 0:
+            lstm_model = train_lstm(X_seq_train, y_seq_train, X_seq_val, y_seq_val, config=config)
+            
+            if len(X_seq_test) > 0:
+                logger.info("Evaluating LSTM on test set...")
+                evaluate_lstm(lstm_model, X_seq_test, y_seq_test, config=config)
+            else:
+                logger.info("Evaluating LSTM on validation set (no test sequences)...")
+                evaluate_lstm(lstm_model, X_seq_val, y_seq_val, config=config)
+        else:
+            logger.warning("Not enough data to create time-series sequences. Skipping LSTM.")
 
     # -----------------------------------------------------------------------
     # Done
@@ -251,9 +315,14 @@ def _parse_args() -> argparse.Namespace:
         default="both",
         help="Which modeling track to run (default: both)",
     )
+    parser.add_argument(
+        "--cv",
+        action="store_true",
+        help="Run GroupKFold cross-validation (grouped by state)",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = _parse_args()
-    run_pipeline(track=args.track)
+    run_pipeline(track=args.track, cv=args.cv)

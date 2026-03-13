@@ -23,10 +23,11 @@ The project answers:
 
 ### Modeling Tracks
 
-| Track | Target | Best Model | Test Score |
-|-------|--------|-----------|------------|
-| **Regression** | `Data_Value` — obesity prevalence % | XGBoost | R² = 0.729, MAE = 2.63 pp |
-| **Early Warning** | `early_warning` — cross into high-risk next year | Random Forest | AUC = 0.860, F1 = 0.639 |
+| Track | Target | Methodology | Best Model | Results |
+|-------|--------|-------------|------------|---------|
+| **Regression** | `Data_Value` (%) | Group K-Fold (Robustness) | XGBoost | R² = 0.715 (CV) |
+| **Early Warning** | `early_warning` | Binary Classification | Random Forest | AUC = 0.860 |
+| **Time Series** | `Data_Value` (next year) | LSTM (Temporal Sequencing)| Neural Network | MAE = 2.45 pp |
 
 ---
 
@@ -59,9 +60,10 @@ brfss-obesity-early-warning/
 │   └── metrics/                      # JSON metric files (regression + classification)
 │
 ├── src/
+│   ├── analysis/                     # statistical_impact.py (ANOVA/Tukey)
 │   ├── data/                         # load_data, validate_data, preprocess
 │   ├── features/                     # build_features, build_targets
-│   ├── models/                       # train, evaluate, explain
+│   ├── models/                       # train, evaluate, cross_validation, explain
 │   ├── pipelines/                    # run_pipeline.py (entry point)
 │   └── utils/                        # paths, helpers, logging
 │
@@ -172,21 +174,15 @@ All parameters are in `configs/config.yaml`:
 
 ---
 
-## Key Results
+| Model | Track | Metric | Test Score |
+|-------|-------|--------|------------|
+| XGBoost | Regression | Test R² | **0.729** |
+| Group K-Fold | Robustness | Avg R² | **0.715** |
+| Random Forest | Early Warning | Test AUC | **0.860** |
+| LSTM | Time Series | Test MAE | **2.45 pp** |
+| ANOVA | Correlation | Income/Edu | **p < 0.0001** |
 
-| Model | Track | Test R² | Test MAE |
-|-------|-------|---------|---------|
-| XGBoost | Regression | **0.729** | **2.629 pp** |
-| Gradient Boosting | Regression | 0.725 | 2.635 pp |
-| Random Forest | Regression | 0.710 | 2.687 pp |
-
-| Model | Track | Test AUC | Test F1 | Test Recall |
-|-------|-------|---------|---------|------------|
-| Random Forest | Early Warning | **0.860** | **0.639** | 0.796 |
-| XGBoost | Early Warning | 0.856 | 0.560 | 0.502 |
-| Logistic Regression | Early Warning | 0.835 | 0.530 | **0.972** |
-
-**Top predictors (across all models):** `rolling_mean_3` · `lag_1` · `ci_width` · `income_enc`
+**Top predictors (across all models):** `rolling_mean_3` · `lag_1` · `income_enc` · `education_enc`
 
 ---
 
