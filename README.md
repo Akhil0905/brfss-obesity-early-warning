@@ -186,13 +186,17 @@ All parameters are in `configs/config.yaml`:
 
 ---
 
-## Split Strategy
+## Split & Validation Strategy
 
-Strict **temporal split** to prevent data leakage:
+1. **Strict Temporal Split** (to prevent data leakage):
+   - **Train:** Years ≤ 2017 (9,499 rows)
+   - **Validation:** Years 2018–2019 (2,712 rows)
+   - **Test:** Years ≥ 2020 (6,867 rows)
 
-- **Train:** Years ≤ 2017 (9,499 rows)
-- **Validation:** Years 2018–2019 (2,712 rows)
-- **Test:** Years ≥ 2020 (6,867 rows)
+2. **5-Fold GroupKFold Cross-Validation** (Grouped by State):
+   - Used during the training phase to ensure geographic generalization.
+   - Prevents "geographic leakage" by ensuring state-specific data is never shared across training/validation folds.
+   - **Mean CV $R^2$ = 0.715** (XGBoost).
 
 High-risk threshold (33.60%) is computed on **training data only** and applied to validation/test.
 
